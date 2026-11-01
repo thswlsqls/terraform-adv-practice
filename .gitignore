@@ -1,0 +1,10 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+*.log
+ids.env
+secrets.auto.tfvars
+04-modules/s3-module-versioning/module-repo/
