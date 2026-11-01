@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "env=${env}" > /etc/app.conf
+%{ for p in ports ~}
+echo "listen ${p}" >> /etc/app.conf
+%{ endfor ~}
