@@ -1,6 +1,6 @@
 # 02-S5 해설
 
-정답 코드는 `solution/main.tf`에 있습니다.
+정답 코드는 `solution/main.tf`, 서술·퀴즈 답안은 `solution/answers.txt`에 있습니다.
 
 1. 원인 두 가지
    - `output "api_key"`: `random_password.result`는 sensitive인데 출력에 `sensitive = true`가 없어서 "Output refers to sensitive values" 오류가 납니다.

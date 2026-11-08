@@ -1,0 +1,37 @@
+# 02-S5 answers  (코드는 solution/main.tf)
+
+## 1. plan 실패 원인 2가지
+(1) output "api_key"가 sensitive 값(random_password.result)을 내보내는데 sensitive = true가 없음
+    → Error: Output refers to sensitive values → output에 sensitive = true 추가
+(2) aws_s3_object.token의 for_each = var.service_tokens (sensitive 맵)
+    → Error: Invalid for_each argument (sensitive 값은 인스턴스 키로 쓸 수 없음)
+    → for_each = nonsensitive(toset(keys(var.service_tokens))), content = var.service_tokens[each.key]
+      키(서비스 이름)만 비밀 해제하고 값은 sensitive 유지
+
+## 2. 출력·CLI 기록에서 숨기기
+variable "db_password" { sensitive = true }
+export TF_VAR_db_password='S3cr3t!'     # -var 는 셸 history·CI 로그에 남고, tfvars는 커밋 위험
+# 선행 공백 + HISTCONTROL=ignorespace 로 export 자체도 history에서 뺄 수 있다
+
+## 3. api_key를 셸 변수에 담기
+API_KEY=$(terraform output -raw api_key)
+# -raw/-json은 sensitive 출력도 평문으로 내준다. 그냥 terraform output 은 <sensitive>로 표시.
+
+## 4. state 평문 확인과 완화 조치
+terraform state pull | grep -c 'S3cr3t'    # 1 이상 → sensitive는 화면 마스킹일 뿐, state·plan 파일은 평문
+완화 조치
+1) 암호화된 원격 backend 사용: S3 backend encrypt=true + SSE-KMS, 버킷·KMS 키 접근을 최소 권한으로 제한
+   (HCP Terraform은 state를 암호화 저장하고 workspace 권한으로 접근 통제)
+2) 로컬 state·plan 파일을 VCS에 커밋하지 않기(.gitignore), CI에 남는 plan 아티팩트 접근 통제·보존 기간 단축
+3) 비밀을 Terraform 값으로 흘리지 않는 설계: 앱이 실행 시 Vault/Secrets Manager에서 직접 조회하고,
+   Terraform은 비밀의 경로와 IAM 권한만 관리. 비밀은 주기적으로 교체(rotation)
+
+## 5. (선택) Vault
+vault server -dev -dev-root-token-id=root &
+export VAULT_ADDR=http://127.0.0.1:8200 VAULT_TOKEN=root
+vault kv put secret/app db_password='S3cr3t!'
+→ data "vault_kv_secret_v2" "app" { mount = "secret", name = "app" }
+  content 에서 data.vault_kv_secret_v2.app.data["db_password"] 참조 (SOLUTION.md 5 참고)
+state 문제가 남는 이유: data source로 읽은 값도 state(와 그 값을 쓴 aws_s3_object.content)에 평문 저장된다.
+비밀의 "원본 보관소"만 Vault로 옮겼을 뿐 Terraform을 거치는 한 state에 남는다.
+state에 남기지 않는 ephemeral 리소스(1.10+)·write-only 인자(1.11+)는 1.6에서 쓸 수 없다.

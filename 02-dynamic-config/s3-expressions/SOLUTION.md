@@ -1,6 +1,6 @@
 # 02-S3 해설
 
-정답 코드는 `solution/main.tf`에 있습니다.
+정답 코드는 `solution/main.tf`, 서술·퀴즈 답안은 `solution/answers.txt`에 있습니다.
 
 - `csvdecode`는 모든 값을 **문자열**로 돌려줍니다. 그래서 `tonumber(each.value.port)`로 바꾸고, `public == "true"`처럼 문자열로 비교해야 합니다.
 - `for_each`의 키를 규칙 이름으로 잡으면 CSV 줄 순서가 바뀌거나 줄이 삭제돼도 다른 규칙의 주소는 그대로입니다. count를 쓰면 인덱스가 밀립니다(01-S3).
