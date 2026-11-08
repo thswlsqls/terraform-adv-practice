@@ -1,5 +1,7 @@
 # 01-S4 해설
 
+정답 코드는 `solution/`에 있습니다.
+
 ```hcl
 resource "aws_s3_bucket" "data" {
   for_each      = toset(var.buckets)

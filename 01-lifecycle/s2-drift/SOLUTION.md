@@ -1,5 +1,7 @@
 # 01-S2 해설
 
+정답 코드는 `solution/`에 있습니다.
+
 ```bash
 terraform plan -refresh-only        # 1. 드리프트만 표시하고 인프라는 바꾸지 않는다
 terraform apply -refresh-only       # 2. state만 실제 값으로 갱신 (terraform refresh는 deprecated, 확인 절차 없음)

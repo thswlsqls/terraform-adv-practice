@@ -1,0 +1,25 @@
+# 01-S4 answers
+
+## 1. 이름 변경 + count → for_each (설정으로 처리)
+solution/main.tf 참고: aws_s3_bucket.data (for_each = toset(var.buckets)) + moved 블록 2개
+terraform plan
+# aws_s3_bucket.b[0] has moved to aws_s3_bucket.data["raw"]
+# aws_s3_bucket.b[1] has moved to aws_s3_bucket.data["curated"]
+# Plan: 0 to add, 0 to change, 0 to destroy.
+terraform apply
+
+## 2. tmp 버킷 관리 종료 (버킷은 AWS에 유지)
+# main.tf에서 resource "aws_s3_bucket" "tmp" 블록 삭제 후
+terraform state rm aws_s3_bucket.tmp
+# removed { lifecycle { destroy = false } } 블록은 1.7+ 기능이라 1.6에서는 쓸 수 없다.
+# 블록만 지우고 state rm을 안 하면 다음 apply에서 버킷이 파괴된다(force_destroy=true라 내용까지).
+
+## 3. raw 버킷 ARN 조회 / 관리 리소스 수
+terraform state show 'aws_s3_bucket.data["raw"]' | grep -E '^\s+arn'
+# arn = "arn:aws:s3:::tfadv-raw-<생성된 접미사>"
+terraform show -json | jq '[.values.root_module.resources[] | select(.mode == "managed")] | length'
+# => 2
+
+## 4. state mv로 처리했다면?
+state mv는 state를 즉시 바꿔서 plan 미리보기·코드 리뷰가 없고, 변경 이력이 코드에 남지 않는다.
+그래서 같은 코드를 쓰는 다른 workspace·모듈 사용자 state에는 리팩터링이 적용되지 않는다(moved는 모든 사용처에 자동 적용).

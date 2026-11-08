@@ -1,5 +1,7 @@
 # 01-S1 해설
 
+정답 코드는 `solution/`에 있습니다.
+
 ```hcl
 # imports.tf — 1.6부터 id에 plan 시점에 알 수 있는 표현식(변수 등)을 쓸 수 있다
 import {

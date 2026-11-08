@@ -1,0 +1,35 @@
+# 01-S2 answers
+
+## 1. 드리프트만 확인 (인프라 변경 없음)
+terraform plan -refresh-only
+
+감지된 변경 (리소스 주소별)
+- aws_security_group.app
+  - tags.Owner / tags_all.Owner: "platform" -> "security-team"
+  - ingress: 22/tcp 0.0.0.0/0 규칙이 추가됨
+- aws_s3_object.config
+  - has been deleted (실제 object가 없음)
+- aws_s3_bucket.artifacts: 변경 없음
+
+## 2. 설정은 그대로, 실제 값을 state에만 반영
+terraform apply -refresh-only
+# (terraform refresh 는 deprecated: 확인 프롬프트 없이 state를 덮어쓴다)
+# 결과: state의 SG에 Owner=security-team, 22 규칙이 기록되고 aws_s3_object.config는 state에서 사라진다.
+
+## 3. 2를 마친 뒤 일반 terraform plan
+설정(main.tf)을 기준으로 state를 되돌리려 한다.
+- aws_security_group.app: update in-place
+  - Owner "security-team" -> "platform" (승인된 변경까지 되돌림)
+  - 22/tcp 규칙 제거
+- aws_s3_object.config: create
+=> Plan: 1 to add, 1 to change, 0 to destroy.
+그대로 apply하면 승인된 Owner 변경까지 원복되므로, 먼저 설정에 Owner=security-team을 반영해야 한다.
+
+## 4. 승인 기록에 맞게 설정 수정 후 apply
+main.tf: tags.Owner = "security-team"
+terraform apply
+=> SG update in-place(22 규칙 제거만), object create
+=> Apply complete! Resources: 1 added, 1 changed, 0 destroyed.
+
+## 5. 최종 확인
+terraform plan -detailed-exitcode; echo $?   # 0 (No changes)

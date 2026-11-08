@@ -1,0 +1,46 @@
+# 01-S3 answers  (main.tf는 수정하지 않는다: solution/main.tf = 시작 코드)
+
+## 1. backend 없이 provider만 설치 후 검증 (CI lint 단계)
+terraform init -backend=false
+terraform validate
+
+## 2. 정상 init → lock 무시하고 제약 범위 내 최신 provider로 갱신
+terraform init
+terraform init -upgrade
+# -upgrade: .terraform.lock.hcl의 고정 버전을 무시하고 "~> 5.0" 안 최신 버전을 받아 lock 파일도 갱신한다.
+
+## 3. 버킷만 생성
+terraform apply -target=aws_s3_bucket.logs
+# state: random_integer.suffix, aws_s3_bucket.logs
+# 이유: -target은 대상 리소스가 의존하는 리소스(bucket 이름의 random_integer.suffix.result)까지 함께 포함한다.
+#       object는 버킷에 의존하는 쪽(역방향)이라 포함되지 않는다.
+#       "Resource targeting is in effect" 경고가 출력된다 — 일상 운영용이 아니다.
+
+## 4. 나머지 변경을 plan 파일로 저장 → 개수 확인 → 저장된 plan 그대로 적용
+terraform plan -out=tfplan
+terraform show -json tfplan | jq '[.resource_changes[] | select(.change.actions == ["create"])] | length'
+# => 3 (aws_s3_object.report[0..2])
+terraform apply tfplan
+# 저장된 plan 파일을 넘기면 확인 프롬프트 없이 그 plan 그대로 적용된다(-auto-approve 불필요).
+
+## 5. reports = ["weekly","monthly"] 로 plan만
+terraform plan -var='reports=["weekly","monthly"]'
+예측
+- aws_s3_object.report[0]: key daily.txt -> weekly.txt  → must be replaced (key는 ForceNew)
+- aws_s3_object.report[1]: key weekly.txt -> monthly.txt → must be replaced
+- aws_s3_object.report[2]: destroy
+=> Plan: 2 to add, 0 to change, 3 to destroy.
+실제 결과: 예측과 동일.
+교훈: count는 인덱스로 주소를 매기므로 맨 앞 원소 하나를 빼도 뒤 원소가 모두 밀려 교체된다. 컬렉션은 for_each(키 기반 주소)를 쓴다.
+
+## 6. daily object 강제 재생성 (내용 변경 없음)
+terraform apply -replace='aws_s3_object.report[0]'
+# => Apply complete! Resources: 1 added, 0 changed, 1 destroyed.
+# taint는 deprecated. -replace는 plan 단계에서 교체를 미리 보여 준다.
+
+## 7. weekly만 파괴 → 전체 파괴 계획 저장 → 그 파일로 파괴
+terraform destroy -target='aws_s3_object.report[1]'
+terraform plan -destroy -out=destroy.tfplan
+terraform apply destroy.tfplan
+# 대괄호가 있는 주소는 셸 글롭을 막기 위해 따옴표로 감싼다.
+# 확인: terraform state list | wc -l  → 0

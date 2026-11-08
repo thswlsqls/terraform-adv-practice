@@ -1,5 +1,7 @@
 # 01-S3 해설
 
+정답 코드는 `solution/`에 있습니다.
+
 ```bash
 terraform init -backend=false && terraform validate            # 1
 terraform init && terraform init -upgrade                      # 2 (-upgrade: lock 무시, 제약 내 최신 + lock 갱신)
